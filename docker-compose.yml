@@ -1,0 +1,63 @@
+version: '3'
+services:
+  notebook:
+    build:
+      context: ./
+      dockerfile: Dockerfile-jupyter
+      args:
+        - BUILD_USER=${USER}
+    ports:
+      - "8888:8888"
+    depends_on:
+      - mlflow
+    environment:
+      MLFLOW_TRACKING_URI: 'http://mlflow:8889'
+      JUPYTER_ENABLE_LAB: 'yes'
+      NB_USER: ${USER}
+      NB_UID: ${USER_ID}
+      NB_GID: ${GROUP_ID}
+      NB_GROUP: ${GROUP_NAME}
+      CHOWN_HOME: 'yes'
+      # GRANT_SUDO: 'yes'
+      CHOWN_EXTRA_OPTS: '-R'
+    user: root
+    working_dir: /home/${USER}
+    volumes:
+      - ${PWD}:/home/${USER}
+    container_name: ${USER}_jupyter
+
+  mlflow:
+    build:
+      context: ./
+      dockerfile: Dockerfile-mlflow
+    expose:
+      - "8889"
+    restart: on-failure
+    ports:
+      - "8889:8889"
+    depends_on:
+      - postgres
+    container_name: ${USER}_mlflow
+
+  postgres:
+    build:
+      context: ./
+      dockerfile: Dockerfile-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: 'admin'
+      POSTGRES_PASSWORD: 'secret'
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-store:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5432"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    container_name: ${USER}_postgres
+
+volumes:
+  postgres-store:
+  file-share:

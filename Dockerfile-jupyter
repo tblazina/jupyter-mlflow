@@ -1,0 +1,28 @@
+FROM jupyter/scipy-notebook
+COPY .condarc /opt/conda/.condarc
+
+COPY pip.conf pip.conf
+ENV PIP_CONFIG_FILE pip.conf
+
+COPY requirements.txt requirements.txt
+RUN conda install --quiet --yes --use-local --file requirements.txt
+# Workaround to install packages not installed by conda because
+# they are not in the conda repos
+RUN pip install -r requirements.txt
+
+# Install jupyter extensions
+COPY .npmrc .npmrc
+COPY .yarnrc .yarnrc
+RUN jupyter labextension install @jupyterlab/celltags --no-build && \
+    jupyter labextension install @jupyterlab/toc --no-build && \
+    jupyter labextension install jupyterlab-drawio --no-build && \
+    jupyter labextension install @lckr/jupyterlab_variableinspector --no-build && \
+    jupyter labextension install @krassowski/jupyterlab_go_to_definition --no-build && \
+    jupyter lab build && \
+    jupyter lab clean && \
+    npm cache clean --force && \
+    rm -rf $CONDA_DIR/share/jupyter/lab/staging
+
+# this allows for relative imports within the project
+ARG BUILD_USER
+ENV PYTHONPATH="${PYTHONPATH}:/home/$BUILD_USER"
